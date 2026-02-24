@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procuradoria Legal Kanban - V2</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="./css/styles.css">
+
+    <!-- PDF Export Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Firebase SDK (Version 10 Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, getDoc, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAOJA0KkbpUriEPRDDyQN_F56OHp_Gprqw",
+            authDomain: "gabinete-lucas-grangeiro.firebaseapp.com",
+            projectId: "gabinete-lucas-grangeiro",
+            storageBucket: "gabinete-lucas-grangeiro.firebasestorage.app",
+            messagingSenderId: "905839321546",
+            appId: "1:905839321546:web:09e336f4732b6f8082af33"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Expose Firebase to our local scripts
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.onSnapshot = onSnapshot;
+        window.getDoc = getDoc;
+        window.doc = doc;
+        window.updateDoc = updateDoc;
+        window.setDoc = setDoc;
+    </script>
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-scale-balanced" style="font-size: 1.8rem;"></i>
+                <h2>Procuradoria Legal</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-link active" data-target="module-procurador">
+                    <i class="fa-solid fa-layer-group"></i> Mesa do Procurador
+                </a>
+                <a href="#" class="nav-link" data-target="module-distribuicao" data-type="Consultivo">
+                    <i class="fa-solid fa-shuffle"></i> Distribuição Consultivo
+                </a>
+                <a href="#" class="nav-link" data-target="module-distribuicao" data-type="Judicial">
+                    <i class="fa-solid fa-gavel"></i> Distribuição Contencioso
+                </a>
+                <a href="#" class="nav-link" data-target="module-dashboard">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard Geral
+                </a>
+                <a href="#" class="nav-link" data-target="module-relatorios">
+                    <i class="fa-solid fa-file-lines"></i> Relatórios
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">LG</div>
+                    <div class="user-info">
+                        <span class="user-name">Lucas Grangeiro</span>
+                        <span class="user-role">Procurador</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+
+            <!-- MODULE 1: Mesa do Procurador (Kanban/Table) -->
+            <section id="module-procurador" class="module active">
+                <header class="app-header">
+                    <div class="header-content">
+                        <div class="module-title">
+                            <h1>Mesa do Procurador: Lucas Grangeiro</h1>
+                        </div>
+
+                        <div class="controls">
+                            <div class="filter-group">
+                                <label for="mesaProcuradorFilter" style="display:none;">Procurador:</label>
+                                <select id="mesaProcuradorFilter" style="margin-right: 0.5rem;">
+                                    <option value="Lucas Grangeiro">Lucas Grangeiro</option>
+                                    <option value="Caterine">Caterine</option>
+                                    <option value="Luís Cabral">Luís Cabral</option>
+                                    <option value="all">Visão Geral (Todos)</option>
+                                </select>
+
+                                <label for="mesaAssessorFilter"><i class="fa-solid fa-filter"></i> Assessor:</label>
+                                <select id="mesaAssessorFilter">
+                                    <option value="all">Mesa Completa</option>
+                                    <option value="Ana Clara Sá">Ana Clara Sá</option>
+                                    <option value="Gabriella">Gabriella</option>
+                                    <option value="Larissa Andrade">Larissa Andrade</option>
+                                    <option value="Valdirene">Valdirene</option>
+                                    <option value="Unassigned">Sem atribuição</option>
+                                </select>
+                            </div>
+
+                            <div class="view-toggle" style="margin-left: 1rem;">
+                                <button id="btnViewKanban" class="btn btn-icon active" title="Visualização Kanban"><i
+                                        class="fa-solid fa-table-columns"></i></button>
+                                <button id="btnViewTable" class="btn btn-icon" title="Visualização Lista"><i
+                                        class="fa-solid fa-list"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="kanban-container" id="kanban-view">
+                    <div class="kanban-column" data-status="triage">
+                        <div class="column-header triage">
+                            <h2>Pendente de Triagem</h2>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="column-body" id="col-triage"></div>
+                    </div>
+
+                    <div class="kanban-column" data-status="advisory">
+                        <div class="column-header advisory">
+                            <h2>Delegado à Assessoria</h2>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="column-body" id="col-advisory"></div>
+                    </div>
+
+                    <div class="kanban-column" data-status="execution">
+                        <div class="column-header execution">
+                            <h2>Em Execução</h2>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="column-body" id="col-execution"></div>
+                    </div>
+
+                    <div class="kanban-column" data-status="correction">
+                        <div class="column-header correction">
+                            <h2>Correção</h2>
+                            <span class="task-count">0</span>
+                        </div>
+                        <div class="column-body" id="col-correction"></div>
+                    </div>
+
+                    <div class="kanban-column hidden-column" data-status="finished" id="col-finished-container"
+                        style="display: none;">
+                        <div class="column-body" id="col-finished"></div>
+                    </div>
+                </main>
+
+                <!-- Table View for Mesa do Procurador -->
+                <main class="table-container" id="table-view" style="display: none; padding: 1.5rem;">
+                    <table class="data-table" id="procurador-table">
+                        <thead>
+                            <tr>
+                                <th>Data Dist.</th>
+                                <th>Processo Attus</th>
+                                <th>Parte Interessada</th>
+                                <th>Assessor</th>
+                                <th>Vencimento</th>
+                                <th>Status Kanban</th>
+                            </tr>
+                        </thead>
+                        <tbody id="procurador-table-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </main>
+            </section>
+
+            <!-- MODULE 2: Distribuição -->
+            <section id="module-distribuicao" class="module" style="display: none;">
+                <header class="app-header">
+                    <div class="header-content">
+                        <h1 id="distribuicao-title">Módulo de Distribuição</h1>
+                        <button id="btnOpenDistribuicao" class="btn btn-primary">
+                            <i class="fa-solid fa-plus"></i> Distribuir Novo
+                        </button>
+                    </div>
+                </header>
+                <main class="module-body" style="padding: 1.5rem;">
+                    <p style="margin-bottom: 1.5rem; color: #4b5563;">Acompanhe os processos pendentes e o histórico
+                        recente.</p>
+
+                    <!-- Pending Distribution Dashboard -->
+                    <div class="dashboard-grid" id="dist-pending-metrics"
+                        style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                        <!-- Injected via JS -->
+                    </div>
+
+                    <div class="form-section-divider">Últimos Processos Distribuídos</div>
+
+                    <div class="filters-bar" style="margin-bottom: 1.5rem; margin-top: 1rem;">
+                        <div class="form-group grid-2" style="max-width: 600px;">
+                            <div>
+                                <label>Filtrar por Procurador</label>
+                                <select id="filterDistProcurador">
+                                    <option value="all">Todos</option>
+                                    <option value="Lucas Grangeiro">Lucas Grangeiro</option>
+                                    <option value="Caterine">Caterine</option>
+                                    <option value="Luís Cabral">Luís Cabral</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Mês de Distribuição</label>
+                                <input type="month" id="filterDistMonth">
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3>Últimos 10 Processos Distribuídos</h3>
+                    <table class="data-table" id="recent-dist-table" style="margin-top: 1rem;">
+                        <thead>
+                            <tr>
+                                <th>Data Dist.</th>
+                                <th>Processo Attus</th>
+                                <th>Parte Interessada</th>
+                                <th>Procurador Destino</th>
+                                <th>Tipo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-dist-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </main>
+            </section>
+
+            <!-- MODULE 3: Dashboard Geral -->
+            <section id="module-dashboard" class="module" style="display: none;">
+                <header class="app-header">
+                    <div class="header-content">
+                        <h1>Dashboard Geral</h1>
+                    </div>
+                </header>
+                <main class="module-body" style="padding: 1.5rem;">
+                    <p style="margin-bottom: 1.5rem; color: #4b5563;">Resumo dos processos ativos (não finalizados) na
+                        Procuradoria.</p>
+                    <div class="dashboard-grid" id="dashboard-metrics"
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                        <!-- JS populated -->
+                    </div>
+                </main>
+            </section>
+
+            <!-- MODULE 4: Relatórios -->
+            <section id="module-relatorios" class="module" style="display: none;">
+                <header class="app-header">
+                    <div class="header-content">
+                        <h1>Relatórios e Estatísticas</h1>
+                    </div>
+                </header>
+                <main class="module-body" style="padding: 1.5rem;">
+                    <div class="filters-bar"
+                        style="margin-bottom: 2rem; background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div class="form-group grid-2" style="max-width: 800px; flex: 1;">
+                            <div>
+                                <label>Procurador</label>
+                                <select id="reportProcuradorFilter">
+                                    <option value="all">Todos</option>
+                                    <option value="Lucas Grangeiro">Lucas Grangeiro</option>
+                                    <option value="Caterine">Caterine</option>
+                                    <option value="Luís Cabral">Luís Cabral</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Status</label>
+                                <select id="reportStatusFilter">
+                                    <option value="all">Todos</option>
+                                    <option value="active">Em Andamento (Ativos)</option>
+                                    <option value="finished">Finalizados</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Mês de Referência (Opcional)</label>
+                                <input type="month" id="reportMonthFilter">
+                            </div>
+                        </div>
+                        <div>
+                            <button id="btnExportPDF" class="btn btn-primary">
+                                <i class="fa-solid fa-file-pdf"></i> Baixar Relatório PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <table class="data-table" id="reports-table">
+                        <thead>
+                            <tr>
+                                <th>Data Dist.</th>
+                                <th>Processo Attus</th>
+                                <th>Procurador Destino</th>
+                                <th>Fase Atual</th>
+                                <th>Vencimento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </main>
+            </section>
+
+        </div> <!-- end main-content -->
+    </div> <!-- end app-layout -->
+
+    <!-- Modal Form: Distribuir Novo Processo -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content" style="max-width: 700px; max-height: 95vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="modalTitle">Distribuir Novo Processo</h2>
+                <button class="btn-close" id="closeModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="taskForm">
+                <input type="hidden" id="taskId">
+
+                <div class="form-row grid-2">
+                    <div class="form-group">
+                        <label for="distributionDate">Data de Distribuição *</label>
+                        <input type="date" id="distributionDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dueDate">Vencimento *</label>
+                        <input type="date" id="dueDate" required>
+                    </div>
+                </div>
+
+                <div class="form-row grid-2">
+                    <div class="form-group">
+                        <label for="assignedProcurador">Procurador de Destino *</label>
+                        <select id="assignedProcurador" required>
+                            <option value="Lucas Grangeiro">Lucas Grangeiro</option>
+                            <option value="Caterine">Caterine</option>
+                            <option value="Luís Cabral">Luís Cabral</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskType">Espécie de Processo *</label>
+                        <select id="taskType" required>
+                            <option value="Judicial">Judicial</option>
+                            <option value="Consultivo">Consultivo</option>
+                            <option value="Administrativo">Administrativo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row grid-2">
+                    <div class="form-group">
+                        <label for="attusNumber">Processo Attus *</label>
+                        <input type="text" id="attusNumber" required placeholder="Ex: 12345/2026">
+                    </div>
+                    <div class="form-group">
+                        <label for="seiNumber">Processo SEI</label>
+                        <input type="text" id="seiNumber" placeholder="Ex: 0001.0002.0003/2026">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="interestedParty">Parte Interessada *</label>
+                    <input type="text" id="interestedParty" required placeholder="Nome popular, autor ou órgão">
+                </div>
+
+                <div class="form-group">
+                    <label for="judicialNumber">Número do Processo Judicial (opcional)</label>
+                    <input type="text" id="judicialNumber" placeholder="Ex: 0000000-00.0000.0.00.0000">
+                </div>
+
+                <div class="form-section-divider">Configurações de Execução do Gabinete</div>
+
+                <div class="form-row grid-2">
+                    <div class="form-group">
+                        <label for="responsible">Assessor Técnico</label>
+                        <select id="responsible">
+                            <option value="Unassigned">Sem atribuição (Para Triagem)</option>
+                            <option value="Ana Clara Sá">Ana Clara Sá</option>
+                            <option value="Gabriella">Gabriella</option>
+                            <option value="Larissa Andrade">Larissa Andrade</option>
+                            <option value="Valdirene">Valdirene</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskStatus">Fase (Kanban)</label>
+                        <select id="taskStatus">
+                            <option value="triage">Pendente de Triagem</option>
+                            <option value="advisory">Delegado à Assessoria</option>
+                            <option value="execution">Em Execução</option>
+                            <option value="correction">Correção</option>
+                            <option value="finished">Finalizado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnCancel">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnSave">Salvar Processo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Detalhes de Dashboard -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="detailsModalTitle">Detalhes de Processos</h2>
+                <button class="btn-close" id="closeDetailsModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="padding: 1.5rem;">
+                <table class="data-table" id="details-table">
+                    <thead>
+                        <tr>
+                            <th>Data Dist.</th>
+                            <th>Processo Attus</th>
+                            <th>Parte Interessada</th>
+                            <th>Assessor</th>
+                            <th>Status/Vencimento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="details-table-body">
+                        <!-- JS populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="./js/data.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+
+</html>
